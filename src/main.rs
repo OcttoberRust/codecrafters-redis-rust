@@ -11,6 +11,7 @@ fn main() {
         match stream {
             Ok(_stream) => {
                 println!("accepted new connection");
+                println!("+PONG\r\n");
             }
             Err(e) => {
                 println!("error: {}", e);
