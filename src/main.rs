@@ -9,9 +9,9 @@ fn main() {
     
     for stream in listener.incoming() {
         match stream {
-            Ok(_stream) => {
+            Ok(mut _stream) => {
                 println!("accepted new connection");
-                stream.write_all(b"PONG");
+                _stream.write(b"PONG");
             }
             Err(e) => {
                 println!("error: {}", e);
