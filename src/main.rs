@@ -8,27 +8,30 @@ fn main() {
     
     let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
     
-    thread::spawn(move ||
-    {});
-    
-    for stream in listener.incoming() {
-        match stream {
-            Ok(mut _stream) => {
-                println!("accepted new connection");
-                let mut buf = [0; 512];
+    let handle = thread::spawn(move ||
+    {
+        for stream in listener.incoming() {
+            
+            match stream {
+                Ok(mut _stream) => {
+                    println!("accepted new connection");
+                    let mut buf = [0; 512];
 
-                loop {
-                    let bytes_read = _stream.read(&mut buf).unwrap();
-                    if bytes_read == 0 {
-                        break;
+                    loop {
+                        let bytes_read = _stream.read(&mut buf).unwrap();
+                        if bytes_read == 0 {
+                            break;
+                        }
+                        _stream.write_all(b"+PONG\r\n");
                     }
-                    _stream.write_all(b"+PONG\r\n");
+                    
                 }
-                
-            }
-            Err(e) => {
-                println!("error: {}", e);
+                Err(e) => {
+                    println!("error: {}", e);
+                }
             }
         }
-    }
+    });
+    handle.join().unwrap();
+
 }
