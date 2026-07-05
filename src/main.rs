@@ -8,10 +8,11 @@ fn main() {
     
     let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
     
-    let handle = thread::spawn(move ||
-    {
-        for stream in listener.incoming() {
-            
+    // let handle = thread::spawn(move ||
+    // {
+    for stream in listener.incoming() {
+        thread::spawn(move || 
+        {
             match stream {
                 Ok(mut _stream) => {
                     println!("accepted new connection");
@@ -30,8 +31,9 @@ fn main() {
                     println!("error: {}", e);
                 }
             }
-        }
-    });
-    handle.join().unwrap();
+         });
+    }
+    // });
+    // handle.join().unwrap();
 
 }
