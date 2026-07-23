@@ -2,28 +2,38 @@
 use std::{io::{Read, Write}, net::TcpListener};
 use std::thread;
 
-fn main() {
-    // You can use print statements as follows for debugging, they'll be visible when running tests.
-    println!("Logs from your program will appear here!");
-    
+use crate::resp::RespParser;
+mod resp;
+
+fn main() {    
     let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
-    
-    // let handle = thread::spawn(move ||
-    // {
+
     for stream in listener.incoming() {
         thread::spawn(move || 
         {
+            let mut parser = resp::RespParser {buf: [0;512], pos: 0, bytes_read: 0};
+
             match stream {
                 Ok(mut _stream) => {
                     println!("accepted new connection");
-                    let mut buf = [0; 512];
 
                     loop {
-                        let bytes_read = _stream.read(&mut buf).unwrap();
+                        let bytes_read = _stream.read(&mut parser.buf).unwrap();
+                        eprintln!("read {} bytes: {:?}", bytes_read, &parser.buf[..bytes_read]);                        
                         if bytes_read == 0 {
                             break;
                         }
-                        _stream.write_all(b"+PONG\r\n");
+
+                        if parser.buf[0] != b'*' {
+                            //invalid array
+                        }
+
+                        parser.bytes_read = bytes_read;
+                        if let Err(e) = parser.ParseInput() {
+                            eprintln!("parse error: {:?}", e);
+                        }
+                        //_stream.write_all(b"+PONG\r\n");
+                        parser.pos = 0;
                     }
                     
                 }
@@ -33,7 +43,5 @@ fn main() {
             }
          });
     }
-    // });
-    // handle.join().unwrap();
 
 }
