@@ -1,8 +1,9 @@
 pub struct RespParser{
     pub buf: [u8; 512],
     pub pos: usize,
-    pub bytes_read: usize
+    pub bytes_read: usize,
 }
+
 
 #[derive(Debug)]
 pub enum RespError {
@@ -10,25 +11,64 @@ pub enum RespError {
     UnexpectedByte,
 }
 
+#[derive(Debug)]
 pub enum RespProtocolDataType {
-
+    SimpleString,
+    SimpleErrors,
+    Integers,
+    BulkStrings(Vec<u8>),
+    NullBulkStrings,
+    Arrays(Vec<RespProtocolDataType>),
+    Nulls,
+    Booleans,
+    Doubles,
+    BigNumbers,
+    BulkErrors,
+    VerbatimStrings,
+    Maps,
+    Attributes,
+    Sets,
+    Pushes,
 }
-
 impl RespParser {
 
-    pub fn ParseInput(&mut self) -> Result<(), RespError> {
-
-        let arraysizevalue = Self::findArraySize(self)?;
+    pub fn parse_input(&mut self) -> Result<RespProtocolDataType, RespError> {
+        
         match self.buf[self.pos] {
-            b'$' => Self::parseString(self, arraysizevalue),
-            _ => Ok(())
+            b'*' => self.array(),
+            b'$' => self.bulk_string(),
+            _ => Err(RespError::UnexpectedEof) //come up with a better error
 
         }
     }
 
-    pub fn findArraySize(&mut self) -> Result<u8, RespError>{
+    pub fn bulk_string(&mut self) ->  Result<RespProtocolDataType, RespError>{
 
-        let mut trackedValueToReturn: u8 = 0;
+        let bulk_string_length = Self::read_length(self)?;
+        let mut payload = Vec::new();
+
+        if self.pos >= self.bytes_read {
+            return Err(RespError::UnexpectedEof);
+        }
+
+        for _i in 0..bulk_string_length {
+            if self.pos > self.bytes_read {
+                return Err(RespError::UnexpectedEof);
+            }
+
+            payload.push(self.buf[self.pos]);
+
+            self.pos = self.pos + 1;
+        }
+        
+        self.pos = self.pos + 2;
+
+        Ok(RespProtocolDataType::BulkStrings(payload))
+    }
+
+    pub fn read_length(&mut self) -> Result<u8, RespError>{
+
+        let mut tracked_value_to_return: u8 = 0;
         let base: u8 = 10;
 
         self.pos = self.pos + 1;
@@ -48,34 +88,32 @@ impl RespParser {
                  return Err(RespError::UnexpectedByte);
              }
 
-             trackedValueToReturn = trackedValueToReturn * base +  (self.buf[self.pos] - b'0');
+             tracked_value_to_return = tracked_value_to_return * base +  (self.buf[self.pos] - b'0');
 
              self.pos = self.pos + 1;
 
         }
 
         self.pos = self.pos + 2;
-        Ok(trackedValueToReturn)
+
+        if self.pos > self.bytes_read {
+                return Err(RespError::UnexpectedEof);
+        }
+
+        Ok(tracked_value_to_return)
     }
 
-    pub fn parseString(&mut self, mut arraysizevalue: u8) -> Result<(), RespError> {
+    pub fn array(&mut self) -> Result<RespProtocolDataType, RespError> {
 
-        let mut vec: Vec<u8> = Vec::new();
-        while arraysizevalue != 0 {
-            if self.pos + 1 >= self.bytes_read {
-                return Err(RespError::UnexpectedEof);
-            }
+        let array_size = Self::read_length(self)?;
 
-            if self.buf[self.pos] == b'\r' && self.buf[self.pos+1] == b'\n'
-            {
-                arraysizevalue = arraysizevalue - 1;
-                self.pos = self.pos + 2;
-                continue;
-            }
+        let mut elements = Vec::new();
 
-             self.pos = self.pos + 1;
-
+        for _i in 0..array_size {
+            elements.push(self.parse_input()?);
         }
-        Ok(())
+
+
+        Ok(RespProtocolDataType::Arrays(elements))
     }
 }

@@ -4,6 +4,7 @@ use std::thread;
 
 use crate::resp::RespParser;
 mod resp;
+mod respdispatcher;
 
 fn main() {    
     let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
@@ -12,8 +13,7 @@ fn main() {
         thread::spawn(move || 
         {
             let mut parser = resp::RespParser {buf: [0;512], pos: 0, bytes_read: 0};
-
-            match stream {
+            match stream { 
                 Ok(mut _stream) => {
                     println!("accepted new connection");
 
@@ -29,10 +29,17 @@ fn main() {
                         }
 
                         parser.bytes_read = bytes_read;
-                        if let Err(e) = parser.ParseInput() {
-                            eprintln!("parse error: {:?}", e);
-                        }
-                        //_stream.write_all(b"+PONG\r\n");
+
+                        match parser.parse_input() {
+                            Ok(value) => {
+                                //parser.dispatch();
+                            }
+                            Err(e) => {
+                                eprintln!("parse error: {:?}", e);
+                                parser.pos = 0;
+                                continue;
+                            }
+                        };
                         parser.pos = 0;
                     }
                     
