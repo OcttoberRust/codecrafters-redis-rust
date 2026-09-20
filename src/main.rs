@@ -1,54 +1,55 @@
-#![allow(unused_imports)]
-use std::{io::{Read, Write}, net::TcpListener};
+use std::io::Read;
+use std::net::TcpListener;
 use std::thread;
 
-use crate::resp::RespParser;
 mod resp;
 mod respdispatcher;
 
-fn main() {    
+fn main() {
     let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
 
-    for stream in listener.incoming() {
-        thread::spawn(move || 
-        {
-            let mut parser = resp::RespParser {buf: [0;512], pos: 0, bytes_read: 0};
-            match stream { 
-                Ok(mut _stream) => {
+    for incoming in listener.incoming() {
+        thread::spawn(move || {
+            let mut parser = resp::RespParser {
+                buf: [0; 512],
+                pos: 0,
+                bytes_read: 0,
+            };
+            let mut dispatcher = respdispatcher::RespDispatcher {};
+
+            match incoming {
+                Ok(mut socket) => {
                     println!("accepted new connection");
 
                     loop {
-                        let bytes_read = _stream.read(&mut parser.buf).unwrap();
-                        eprintln!("read {} bytes: {:?}", bytes_read, &parser.buf[..bytes_read]);                        
+                        let bytes_read = socket.read(&mut parser.buf).unwrap();
+                        eprintln!("read {} bytes: {:?}", bytes_read, &parser.buf[..bytes_read]);
+
                         if bytes_read == 0 {
                             break;
                         }
 
-                        if parser.buf[0] != b'*' {
-                            //invalid array
-                        }
-
                         parser.bytes_read = bytes_read;
 
-                        match parser.parse_input() {
-                            Ok(value) => {
-                                //parser.dispatch();
-                            }
+                        let command = match parser.parse_input() {
+                            Ok(value) => dispatcher.convert_to_command(value),
                             Err(e) => {
                                 eprintln!("parse error: {:?}", e);
                                 parser.pos = 0;
                                 continue;
                             }
                         };
+
+                        // TODO: dispatch(command) -> RespProtocolDataType,
+                        // encode into bytes, then socket.write_all them.
+
                         parser.pos = 0;
                     }
-                    
                 }
                 Err(e) => {
                     println!("error: {}", e);
                 }
             }
-         });
+        });
     }
-
 }
