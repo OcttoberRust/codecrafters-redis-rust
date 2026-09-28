@@ -1,3 +1,5 @@
+use std::todo;
+
 use crate::resp::RespProtocolDataType;
 
 pub struct RespDispatcher {}
@@ -22,11 +24,11 @@ impl RespDispatcher {
         &mut self,
         value: RespProtocolDataType,
     ) -> Result<Command, DispatchError> {
-        if let RespProtocolDataType::Arrays(elements) = value {
+        if let RespProtocolDataType::Array(elements) = value {
             let mut parts = elements.into_iter();
             let command_name = parts.next();
 
-            if let Some(RespProtocolDataType::BulkStrings(name_bytes)) = command_name {
+            if let Some(RespProtocolDataType::BulkString(name_bytes)) = command_name {
                 match name_bytes.to_ascii_uppercase().as_slice() {
                     b"PING" => match Self::parse_ping_args(parts) {
                         Ok(msg) => return Ok(Command::Ping(msg)),
@@ -54,7 +56,7 @@ impl RespDispatcher {
         match probes {
             (None, None) => Ok(None),
             (Some(arg), None) => {
-                if let RespProtocolDataType::BulkStrings(msg) = arg {
+                if let RespProtocolDataType::BulkString(msg) = arg {
                     Ok(Some(msg))
                 } else {
                     Err(DispatchError::ArgumentNotBulkString)
@@ -71,7 +73,7 @@ impl RespDispatcher {
 
         match probes {
             (Some(arg), None) => {
-                if let RespProtocolDataType::BulkStrings(msg) = arg {
+                if let RespProtocolDataType::BulkString(msg) = arg {
                     Ok(msg)
                 } else {
                     Err(DispatchError::ArgumentNotBulkString)
@@ -81,8 +83,22 @@ impl RespDispatcher {
         }
     }
 
-    // TODO: both return a RespProtocolDataType.
-    pub fn ping_command() {}
+    pub fn dispatch(&mut self, command_type: Command) -> RespProtocolDataType {
+        match command_type {
+            Command::Ping(val) => return Self::ping_command(val),
+            Command::Echo(val) => return Self::echo_command(val),
+        }
+    }
 
-    pub fn echo_command() {}
+    // TODO: both return a RespProtocolDataType.
+    fn ping_command(msg: Option<Vec<u8>>) -> RespProtocolDataType {
+        match msg {
+            None => return RespProtocolDataType::SimpleString(b"PONG".to_vec()),
+            Some(val) => {return RespProtocolDataType::BulkString(val);}
+        }
+    }
+
+    fn echo_command(msg: Vec<u8>) -> RespProtocolDataType {
+        return RespProtocolDataType::BulkString(msg);
+    }
 }

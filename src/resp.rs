@@ -12,8 +12,9 @@ pub enum RespError {
 
 #[derive(Debug)]
 pub enum RespProtocolDataType {
-    BulkStrings(Vec<u8>),
-    Arrays(Vec<RespProtocolDataType>),
+    BulkString(Vec<u8>),
+    SimpleString(Vec<u8>),
+    Array(Vec<RespProtocolDataType>),
 }
 
 impl RespParser {
@@ -45,7 +46,7 @@ impl RespParser {
 
         self.pos += 2;
 
-        Ok(RespProtocolDataType::BulkStrings(payload))
+        Ok(RespProtocolDataType::BulkString(payload))
     }
 
     pub fn read_length(&mut self) -> Result<u8, RespError> {
@@ -89,6 +90,6 @@ impl RespParser {
             elements.push(self.parse_input()?);
         }
 
-        Ok(RespProtocolDataType::Arrays(elements))
+        Ok(RespProtocolDataType::Array(elements))
     }
 }

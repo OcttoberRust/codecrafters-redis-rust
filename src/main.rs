@@ -1,9 +1,11 @@
+use std::fs::TryLockError::Error;
 use std::io::Read;
 use std::net::TcpListener;
 use std::thread;
 
 mod resp;
 mod respdispatcher;
+mod respencoder;
 
 fn main() {
     let listener = TcpListener::bind("127.0.0.1:6379").unwrap();
@@ -16,6 +18,7 @@ fn main() {
                 bytes_read: 0,
             };
             let mut dispatcher = respdispatcher::RespDispatcher {};
+            let mut encoder = respencoder::RespEncoder {};
 
             match incoming {
                 Ok(mut socket) => {
@@ -32,7 +35,16 @@ fn main() {
                         parser.bytes_read = bytes_read;
 
                         let command = match parser.parse_input() {
-                            Ok(value) => dispatcher.convert_to_command(value),
+                            Ok(value) => {
+                                match dispatcher.convert_to_command(value) {
+                                    Ok(value) => value,
+                                    Err(e) => {
+                                        eprintln!("parse error: {:?}", e);
+                                        parser.pos = 0;
+                                        continue;
+                                    }
+                                }
+                            },
                             Err(e) => {
                                 eprintln!("parse error: {:?}", e);
                                 parser.pos = 0;
@@ -42,6 +54,17 @@ fn main() {
 
                         // TODO: dispatch(command) -> RespProtocolDataType,
                         // encode into bytes, then socket.write_all them.
+
+                        let value_to_encode = dispatcher.dispatch(command);
+                        
+                        let encoded_value = match encoder.encode(value_to_encode) {
+                            Ok(value) => value,
+                            Err(e) => {
+                                eprintln!("encoding error: {:?}", e);
+                                parser.pos = 0;
+                                continue;
+                            }
+                        };
 
                         parser.pos = 0;
                     }
