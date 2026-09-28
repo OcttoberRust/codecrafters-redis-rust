@@ -1,5 +1,4 @@
-use std::fs::TryLockError::Error;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;
 
@@ -52,9 +51,6 @@ fn main() {
                             }
                         };
 
-                        // TODO: dispatch(command) -> RespProtocolDataType,
-                        // encode into bytes, then socket.write_all them.
-
                         let value_to_encode = dispatcher.dispatch(command);
                         
                         let encoded_value = match encoder.encode(value_to_encode) {
@@ -67,6 +63,10 @@ fn main() {
                         };
 
                         parser.pos = 0;
+
+                        let result = socket.write_all(&encoded_value);
+                        result.expect("TBD")
+
                     }
                 }
                 Err(e) => {
