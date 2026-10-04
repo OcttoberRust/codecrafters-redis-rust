@@ -19,7 +19,6 @@ pub enum DispatchError {
 }
 
 impl RespDispatcher {
-
     pub fn convert_to_command(
         &mut self,
         value: RespProtocolDataType,
@@ -94,7 +93,9 @@ impl RespDispatcher {
     fn ping_command(msg: Option<Vec<u8>>) -> RespProtocolDataType {
         match msg {
             None => return RespProtocolDataType::SimpleString(b"PONG".to_vec()),
-            Some(val) => {return RespProtocolDataType::BulkString(val);}
+            Some(val) => {
+                return RespProtocolDataType::BulkString(val);
+            }
         }
     }
 

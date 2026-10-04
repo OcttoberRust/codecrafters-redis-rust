@@ -18,8 +18,10 @@ pub enum RespProtocolDataType {
 }
 
 impl RespParser {
-
     pub fn parse_input(&mut self) -> Result<RespProtocolDataType, RespError> {
+        if self.pos >= self.bytes_read {
+            return Err(RespError::UnexpectedEof);
+        }
         match self.buf[self.pos] {
             b'*' => self.array(),
             b'$' => self.bulk_string(),
@@ -36,12 +38,24 @@ impl RespParser {
         }
 
         for _ in 0..bulk_string_length {
-            if self.pos > self.bytes_read {
+            if self.pos >= self.bytes_read {
                 return Err(RespError::UnexpectedEof);
             }
 
             payload.push(self.buf[self.pos]);
             self.pos += 1;
+        }
+
+        if self.pos < self.bytes_read {
+            if self.buf[self.pos] != b'\r' {
+                return Err(RespError::UnexpectedByte);
+            } else if self.buf[self.pos] == b'\r' && self.pos + 1 >= self.bytes_read {
+                return Err(RespError::UnexpectedEof); // I also need to return the position I am currently in so that the reader can append from that point on
+            } else if self.buf[self.pos] == b'\r' && self.buf[self.pos + 1] != b'\n' {
+                return Err(RespError::UnexpectedByte);
+            }
+        } else {
+            return Err(RespError::UnexpectedEof);
         }
 
         self.pos += 2;

@@ -7,7 +7,7 @@ pub struct RespEncoder {}
 
 #[derive(Debug)]
 pub enum EncoderError {
-    Unknown
+    Unknown,
 }
 
 impl RespEncoder {
@@ -15,13 +15,11 @@ impl RespEncoder {
         match value {
             BulkString(val) => return Ok(Self::encode_bulk_string(val)),
             SimpleString(val) => return Ok(Self::encode_simple_string(val)),
-            _ => return Err(EncoderError::Unknown)
+            _ => return Err(EncoderError::Unknown),
         }
     }
 
     pub fn encode_bulk_string(msg: Vec<u8>) -> Vec<u8> {
-
-        
         let mut out = b"$".to_vec();
 
         out.extend_from_slice(msg.len().to_string().as_bytes());
@@ -32,7 +30,6 @@ impl RespEncoder {
     }
 
     pub fn encode_simple_string(msg: Vec<u8>) -> Vec<u8> {
-
         let mut out = b"+".to_vec();
 
         out.extend_from_slice(&msg);

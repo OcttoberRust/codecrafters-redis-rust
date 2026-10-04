@@ -24,24 +24,21 @@ fn main() {
                     println!("accepted new connection");
 
                     loop {
-                        let bytes_read = socket.read(&mut parser.buf).unwrap();
+                        let bytes_read = socket.read(&mut parser.buf[parser.bytes_read..]).unwrap();
+                        parser.bytes_read = parser.bytes_read + bytes_read;
                         eprintln!("read {} bytes: {:?}", bytes_read, &parser.buf[..bytes_read]);
 
                         if bytes_read == 0 {
                             break;
                         }
 
-                        parser.bytes_read = bytes_read;
-
                         let command = match parser.parse_input() {
-                            Ok(value) => {
-                                match dispatcher.convert_to_command(value) {
-                                    Ok(value) => value,
-                                    Err(e) => {
-                                        eprintln!("parse error: {:?}", e);
-                                        parser.pos = 0;
-                                        continue;
-                                    }
+                            Ok(value) => match dispatcher.convert_to_command(value) {
+                                Ok(value) => value,
+                                Err(e) => {
+                                    eprintln!("parse error: {:?}", e);
+                                    parser.pos = 0;
+                                    continue;
                                 }
                             },
                             Err(e) => {
@@ -52,7 +49,7 @@ fn main() {
                         };
 
                         let value_to_encode = dispatcher.dispatch(command);
-                        
+
                         let encoded_value = match encoder.encode(value_to_encode) {
                             Ok(value) => value,
                             Err(e) => {
@@ -63,10 +60,9 @@ fn main() {
                         };
 
                         parser.pos = 0;
-
+                        parser.bytes_read = 0;
                         let result = socket.write_all(&encoded_value);
                         result.expect("TBD")
-
                     }
                 }
                 Err(e) => {
